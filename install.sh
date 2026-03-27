@@ -51,19 +51,6 @@ print_info() {
   echo -e "${CYAN}ℹ${NC} $1"
 }
 
-prompt_company_name() {
-  local company_name=""
-  while [[ -z "$company_name" ]]; do
-    # Output prompt to stderr so it shows when piped but doesn't get captured
-    echo -n "Enter company name (e.g., 'BYREASON LLC'): " >&2
-    read -r company_name
-    if [[ -z "$company_name" ]]; then
-      print_error "Company name is required." >&2
-    fi
-  done
-  echo "$company_name"
-}
-
 validate_target_path() {
   local path="$1"
   
@@ -230,15 +217,14 @@ main() {
     exit 1
   fi
   
-  # Prompt for company name
+  # Configuration
   echo "Configuration"
   echo "-------------"
-  local company_name=$(prompt_company_name)
-  
-  # Use default target path
+  local company_name="<COMPANY_NAME>"
   local target_path="ghostledger"
   print_info "Using year: $CURRENT_YEAR"
   print_info "Target directory: $target_path"
+  print_info "Company name: $company_name (configure manually in main.ledger)"
   
   # Validate target path
   validate_target_path "$target_path"
