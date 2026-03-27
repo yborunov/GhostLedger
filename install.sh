@@ -108,26 +108,40 @@ validate_path() {
 download_boilerplate() {
   echo ""
   echo "Downloading boilerplate from GitHub..."
+  echo "  Source: ${BOILERPLATE_URL} (${BOILERPLATE_REF} branch)"
+  echo "  This may take a few seconds..."
+  echo ""
   
   cd "$TEMP_DIR"
+  local download_url="${BOILERPLATE_URL}/archive/refs/heads/${BOILERPLATE_REF}.tar.gz"
   
-  # Try to download using curl or wget
+  # Download using curl or wget with progress
   if command -v curl &> /dev/null; then
-    curl -sL "${BOILERPLATE_URL}/archive/refs/heads/${BOILERPLATE_REF}.tar.gz" | tar -xz --strip-components=1 2>/dev/null || {
+    echo -n "  [0%] Downloading..."
+    if ! curl -#L "$download_url" --progress-bar | tar -xz --strip-components=1 2>/dev/null; then
+      echo ""
       print_error "Failed to download boilerplate. Check your internet connection."
+      echo "  URL: $download_url"
       exit 1
-    }
+    fi
+    echo "  [100%]"
   elif command -v wget &> /dev/null; then
-    wget -qO- "${BOILERPLATE_URL}/archive/refs/heads/${BOILERPLATE_REF}.tar.gz" | tar -xz --strip-components=1 2>/dev/null || {
+    echo -n "  [0%] Downloading..."
+    if ! wget --progress=dot -qO- "$download_url" 2>&1 | tar -xz --strip-components=1 2>/dev/null; then
+      echo ""
       print_error "Failed to download boilerplate. Check your internet connection."
+      echo "  URL: $download_url"
       exit 1
-    }
+    fi
+    echo "  [100%]"
   else
     print_error "Neither curl nor wget found. Please install one of them."
     exit 1
   fi
   
-  print_success "Downloaded boilerplate from ${BOILERPLATE_REF} branch"
+  # Count files
+  local file_count=$(find . -type f ! -path "./.git/*" 2>/dev/null | wc -l)
+  print_success "Downloaded boilerplate (${file_count} files)"
 }
 
 replace_placeholders() {
