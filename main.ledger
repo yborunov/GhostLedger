@@ -1,0 +1,6 @@
+; <COMPANY_NAME> Ledger
+; Root file includes normalized import journals.
+
+include imports/<YEAR>/bank.ledger
+include imports/<YEAR>/card.ledger
+include imports/<YEAR>/invoices.ledger
