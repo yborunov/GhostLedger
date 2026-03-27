@@ -12,6 +12,7 @@ BOILERPLATE_URL="https://github.com/yborunov/GhostLedger"
 BOILERPLATE_REF="main"
 TEMP_DIR=$(mktemp -d)
 CURRENT_YEAR=$(date +%Y)
+INVOCATION_DIR=$(pwd -P)
 
 # Colors for output
 RED='\033[0;31m'
@@ -53,8 +54,7 @@ print_info() {
 prompt_company_name() {
   local company_name=""
   while [[ -z "$company_name" ]]; do
-    # Read from /dev/tty to work when script is piped
-    read -r -p "Enter company name (e.g., 'BYREASON LLC'): " company_name < /dev/tty
+    read -r -p "Enter company name (e.g., 'BYREASON LLC'): " company_name
     if [[ -z "$company_name" ]]; then
       print_error "Company name is required."
     fi
@@ -62,29 +62,13 @@ prompt_company_name() {
   echo "$company_name"
 }
 
-prompt_target_path() {
-  local target_path=""
-  while [[ -z "$target_path" ]]; do
-    # Read from /dev/tty to work when script is piped
-    read -r -p "Enter target directory path (e.g., './my-company-accounting' or '/full/path/to/dir'): " target_path < /dev/tty
-    if [[ -z "$target_path" ]]; then
-      print_error "Target path is required."
-    fi
-  done
-  
-  # Expand tilde to home directory
-  target_path="${target_path/#\~/$HOME}"
-  
-  echo "$target_path"
-}
-
-validate_path() {
+validate_target_path() {
   local path="$1"
   
   # Check if path already exists
   if [[ -e "$path" ]]; then
-    print_error "Path already exists: $path"
-    read -r -p "Do you want to overwrite it? (y/N): " confirm < /dev/tty
+    print_error "Directory already exists: $path"
+    read -r -p "Do you want to overwrite it? (y/N): " confirm
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
       rm -rf "$path"
       print_warning "Removed existing directory: $path"
@@ -92,18 +76,6 @@ validate_path() {
       print_error "Installation cancelled."
       exit 1
     fi
-  fi
-  
-  # Check if parent directory exists
-  local parent_dir=$(dirname "$path")
-  if [[ ! -d "$parent_dir" ]]; then
-    read -r -p "Parent directory doesn't exist. Create it? (Y/n): " confirm < /dev/tty
-    if [[ "$confirm" =~ ^[Nn]$ ]]; then
-      print_error "Installation cancelled."
-      exit 1
-    fi
-    mkdir -p "$parent_dir"
-    print_success "Created parent directory: $parent_dir"
   fi
 }
 
@@ -114,8 +86,10 @@ download_boilerplate() {
   echo "  This may take a few seconds..."
   echo ""
   
-  cd "$TEMP_DIR"
   local download_url="${BOILERPLATE_URL}/archive/refs/heads/${BOILERPLATE_REF}.tar.gz"
+  local original_dir=$(pwd)
+  
+  cd "$TEMP_DIR"
   
   # Download using curl or wget with progress
   if command -v curl &> /dev/null; then
@@ -144,6 +118,9 @@ download_boilerplate() {
   # Count files
   local file_count=$(find . -type f ! -path "./.git/*" 2>/dev/null | wc -l)
   print_success "Downloaded boilerplate (${file_count} files)"
+  
+  # Return to original directory
+  cd "$original_dir"
 }
 
 replace_placeholders() {
@@ -174,7 +151,8 @@ setup_working_directory() {
   
   # Copy all boilerplate files except install.sh, update.sh, and git files
   while IFS= read -r file; do
-    local rel_path="${file#$TEMP_DIR/}"
+    # Remove ./ prefix from relative paths
+    local rel_path="${file#./}"
     local dest_file="$target_path/$rel_path"
     
     # Skip certain files
@@ -190,15 +168,15 @@ setup_working_directory() {
     # Create directory if needed
     mkdir -p "$(dirname "$dest_file")" 2>/dev/null || true
     
-    # Copy file
-    cp "$file" "$dest_file"
+    # Copy file (use full path to source since we're not in TEMP_DIR)
+    cp "$TEMP_DIR/$file" "$dest_file"
     
     # Replace placeholders in text files
     if file "$dest_file" | grep -q "text\|ASCII"; then
       replace_placeholders "$dest_file" "$company_name" "$year"
     fi
     
-  done < <(find "$TEMP_DIR" -type f 2>/dev/null)
+  done < <(cd "$TEMP_DIR" && find . -type f -print 2>/dev/null)
   
   # Rename <YEAR> folders to actual year
   find "$target_path" -type d -name "*<YEAR>*" 2>/dev/null | while read -r dir; do
@@ -251,23 +229,22 @@ main() {
   fi
   
   # Prompt for company name
-  echo "Step 1 of 2: Configuration"
-  echo "--------------------------"
+  echo "Configuration"
+  echo "-------------"
   local company_name=$(prompt_company_name)
-  echo ""
   
-  # Prompt for target path
-  local target_path=$(prompt_target_path)
-  echo ""
-  
-  # Validate and prepare path
+  # Use default target path
+  local target_path="ghostledger"
   print_info "Using year: $CURRENT_YEAR"
-  validate_path "$target_path"
+  print_info "Target directory: $target_path"
+  
+  # Validate target path
+  validate_target_path "$target_path"
   
   # Download boilerplate
   echo ""
-  echo "Step 2 of 2: Download and Setup"
-  echo "--------------------------------"
+  echo "Download and Setup"
+  echo "------------------"
   download_boilerplate
   
   # Setup working directory
