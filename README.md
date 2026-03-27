@@ -23,7 +23,23 @@ This repository is country-agnostic at the bookkeeping layer and supports countr
 - `skills/tax-us/SKILL.md` - US tax workflow and form mapping.
 - `skills/tax-ca/SKILL.md` - Canada tax workflow and form mapping.
 
+## Installation
+
+Create a new working repository with one command:
+
+```bash
+curl -sL https://raw.githubusercontent.com/yborunov/GhostLedger/main/install.sh | bash
+```
+
+This will:
+- Prompt for your company name
+- Prompt for target directory path
+- Download and set up the boilerplate with current year
+- Replace all placeholders automatically
+
 ## Quick Start
+
+If you prefer manual setup:
 
 1. Clone this repository.
 2. Replace placeholders in docs (`<COMPANY_NAME>`, `<YEAR>`, `<COUNTRY>`).
